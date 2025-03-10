@@ -19,10 +19,15 @@ jobs:
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
             cd ~/app/ArtistBot
+            git stash -u
             git pull
             cd frontend
+            if [ -d "build" ]; then
+            sudo chown -R $(whoami):$(whoami) build/
+            fi
             npm ci
             npm run build
+            sudo chown -R www-data:www-data build/
             cd ../backend
             npm ci
             pm2 restart backend || pm2 start npm --name backend -- run start:prod
