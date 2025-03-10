@@ -14,14 +14,14 @@ const s3 = new AWS.S3({
   secretAccessKey: process.env.AWS_SECRET_KEY,
 });
 
-/**
- * Generate a unique user ID
- * @returns {string} Generated user ID in format U_XXXXXXXXX
- */
-function generateCustomUserId() {
-  const randomPart = Math.floor(100000000 + Math.random() * 900000000);
-  return `U_${randomPart}`;
-}
+// /**
+//  * Generate a unique user ID
+//  * @returns {string} Generated user ID in format U_XXXXXXXXX
+//  */
+// function generateCustomUserId() {
+//   const randomPart = Math.floor(100000000 + Math.random() * 900000000);
+//   return `U_${randomPart}`;
+// }
 
 /**
  * Determine file extension based on URL and content-type
@@ -102,8 +102,7 @@ export const handleWebhook = async (req, res) => {
   try {
     console.log("📥 Received Webhook Data:", req.body);
 
-    // Generate a custom user ID
-    const userId = generateCustomUserId();
+    // Generate a custom user I
 
     // Extract required fields from the payload
     const {
@@ -160,7 +159,7 @@ export const handleWebhook = async (req, res) => {
           const ext = getExtension(url, contentType);
 
           // Construct S3 file key
-          const fileKey = `${userId}/work_sample_${index + 1}.${ext}`;
+          const fileKey = `${responseId}/work_sample_${index + 1}.${ext}`;
 
           // Upload the image to S3
           const { s3Uri, url: publicUrl } = await uploadImageToS3(
@@ -205,7 +204,6 @@ export const handleWebhook = async (req, res) => {
     // Save the survey response in MongoDB with assigned condition
     const newResponse = await SurveyResponse.create({
       responseId,
-      userId,
       artist_experience,
       work_samples: validWorkSamples,
       assignedCondition,
@@ -214,7 +212,7 @@ export const handleWebhook = async (req, res) => {
     console.log("✅ Survey Response Saved:", newResponse);
     res.status(200).json({
       message: "Webhook received and images saved successfully",
-      userId,
+      responseId,
       assignedCondition,
     });
   } catch (error) {
@@ -229,8 +227,8 @@ export const handleWebhook = async (req, res) => {
 export const handleFinalLogo = async (req, res) => {
   try {
     // Validate required fields
-    const { userId, finalLogoUrl } = req.body;
-    if (!userId || !finalLogoUrl) {
+    const { responseId, finalLogoUrl } = req.body;
+    if (!responseId || !finalLogoUrl) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -246,7 +244,7 @@ export const handleFinalLogo = async (req, res) => {
     const ext = getExtension(finalLogoUrl, contentType);
 
     // Construct a file key for the final logo
-    const fileKey = `${userId}/final_logo.${ext}`;
+    const fileKey = `${responseId}/final_logo.${ext}`;
 
     // Upload the final logo to S3
     const { s3Uri, url: publicUrl } = await uploadImageToS3(
@@ -257,7 +255,7 @@ export const handleFinalLogo = async (req, res) => {
 
     // Update the SurveyResponse document
     const updatedResponse = await SurveyResponse.findOneAndUpdate(
-      { userId },
+      { responseId },
       {
         $set: {
           final_logo: {
@@ -290,10 +288,10 @@ export const handleFinalLogo = async (req, res) => {
  * This function is kept for backward compatibility,
  * but is less necessary with public URLs that don't expire
  */
-export const refreshPresignedUrls = async (userId) => {
+export const refreshPresignedUrls = async (responseId) => {
   try {
     // Find the user's survey response
-    const surveyResponse = await SurveyResponse.findOne({ userId });
+    const surveyResponse = await SurveyResponse.findOne({ responseId });
     if (!surveyResponse) {
       throw new Error("User not found");
     }
@@ -326,10 +324,10 @@ export const refreshPresignedUrls = async (userId) => {
     // Save the updated document
     await surveyResponse.save();
 
-    console.log(`✅ Refreshed URLs for user ${userId}`);
+    console.log(`✅ Refreshed URLs for user ${responseId}`);
     return surveyResponse;
   } catch (error) {
-    console.error(`❌ Error refreshing URLs for user ${userId}:`, error);
+    console.error(`❌ Error refreshing URLs for user ${responseId}:`, error);
     throw error;
   }
 };

@@ -4,27 +4,27 @@ import axios from "axios";
 
 /**
  * Custom hook for handling chat messages
- * @param {string|null} userId - The user ID (null for general users)
+ * @param {string|null} responseId - The user ID (null for general users)
  * @param {string} condition - The user's condition (general or personalized)
  * @param {number} timeLeft - Time remaining in session
  * @returns {object} - Chat message state and handlers
  */
-export const useChatMessages = (userId, condition, timeLeft) => {
+export const useChatMessages = (responseId, condition, timeLeft) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loadingResponse, setLoadingResponse] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // Generate a temporary anonymous ID for general users if userId is not provided
+  // Generate a temporary anonymous ID for general users if responseId is not provided
   const [temporaryId] = useState(() => {
-    if (!userId) {
+    if (!responseId) {
       return `temp_${Math.random().toString(36).substring(2, 15)}`;
     }
     return null;
   });
 
-  // Use the real userId if available, otherwise use the temporary one
-  const effectiveUserId = userId || temporaryId;
+  // Use the real responseId if available, otherwise use the temporary one
+  const effectiveresponseId = responseId || temporaryId;
 
   // Fetch initial greeting
   useEffect(() => {
@@ -33,7 +33,7 @@ export const useChatMessages = (userId, condition, timeLeft) => {
     // Use the updated endpoint for greeting
     axios
       .post(`/api/greeting`, {
-        userId: effectiveUserId,
+        responseId: effectiveresponseId,
         condition: condition || "general", // Ensure a default if not provided
       })
       .then((res) => {
@@ -58,7 +58,7 @@ export const useChatMessages = (userId, condition, timeLeft) => {
           },
         ]);
       });
-  }, [effectiveUserId, condition]);
+  }, [effectiveresponseId, condition]);
 
   // Send message function
   const sendMessage = async () => {
@@ -69,7 +69,7 @@ export const useChatMessages = (userId, condition, timeLeft) => {
     try {
       setLoadingResponse(true);
       const payload = {
-        userId: effectiveUserId,
+        responseId: effectiveresponseId,
         message: input,
         condition: condition || "general",
       };

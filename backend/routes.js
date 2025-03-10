@@ -12,7 +12,7 @@ const router = express.Router();
 
 // Define the webhook route (protected by the JWT middleware)
 router.post("/webhook", verifyToken, handleWebhook);
-router.get("/user/:userId/images", getUserImages);
+router.get("/response/:responseId/images", getUserImages);
 // ✅ OpenAI Chat API (JWT protected)
 router.post("/chat", handleChat);
 router.post("/greeting", handleGreeting);

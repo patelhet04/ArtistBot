@@ -27,7 +27,7 @@ import { useImagePreview } from "../hooks/useImagePreview";
 
 const Chat = () => {
   const [searchParams] = useSearchParams();
-  const userId = searchParams.get("userid");
+  const responseId = searchParams.get("responseId");
   const condition = searchParams.get("condition");
 
   // Timer state
@@ -47,7 +47,7 @@ const Chat = () => {
     handleKeyDown,
     loadingResponse,
     initialLoading,
-  } = useChatMessages(userId, condition, timeLeft);
+  } = useChatMessages(responseId, condition, timeLeft);
 
   const {
     finalLogoFile,
@@ -63,7 +63,7 @@ const Chat = () => {
     handleDrop,
     handleUploadClick,
     handleFinalSubmit,
-  } = useLogoSubmission(userId);
+  } = useLogoSubmission(responseId);
 
   const {
     previewOpen,
@@ -93,10 +93,10 @@ const Chat = () => {
 
   // Load personalized images if applicable
   useEffect(() => {
-    if (userId && condition === "personalized") {
+    if (responseId && condition === "personalized") {
       setLoadingImages(true);
       axios
-        .get(`/api/user/${userId}/images`)
+        .get(`/api/response/${responseId}/images`)
         .then((res) => {
           console.log(res.data.images, "DATA");
           setImages(res.data.images);
@@ -107,7 +107,7 @@ const Chat = () => {
           setLoadingImages(false);
         });
     }
-  }, [userId, condition]);
+  }, [responseId, condition]);
 
   return (
     <Box

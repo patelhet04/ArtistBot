@@ -6,17 +6,17 @@ import { getBalancedPersonalizedCondition } from "./conditionAssignmentService.j
 /**
  * Maps a URL condition parameter to the appropriate internal condition
  * @param {string} urlCondition - The condition from the URL
- * @param {string} userId - The user's ID
+ * @param {string} responseId - The user's ID
  * @returns {Promise<string>} - The internal condition name
  */
-export const mapUrlConditionToInternal = async (urlCondition, userId) => {
+export const mapUrlConditionToInternal = async (urlCondition, responseId) => {
   // If URL explicitly specifies 'general', use the general condition
   if (urlCondition === "general") {
     return CONDITIONS.GENERAL;
   }
 
   // Find user in database to determine if they are personalized
-  const userResponse = await SurveyResponse.findOne({ userId });
+  const userResponse = await SurveyResponse.findOne({ responseId });
   const isPersonalized = !!userResponse;
 
   // Non-personalized users should always get the general condition

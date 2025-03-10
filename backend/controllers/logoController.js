@@ -17,19 +17,19 @@ import fileType from "file-type";
 export const uploadFinalLogo = async (req, res) => {
   try {
     console.log("📥 Received final logo upload request");
-    const { userId } = req.body;
+    const { responseId } = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ error: "Missing userId parameter" });
+    if (!responseId) {
+      return res.status(400).json({ error: "Missing responseId parameter" });
     }
 
     // Find the user's survey response to ensure they exist
-    const surveyResponse = await SurveyResponse.findOne({ userId });
+    const surveyResponse = await SurveyResponse.findOne({ responseId });
     if (!surveyResponse) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    console.log(`👤 Processing final logo for user: ${userId}`);
+    console.log(`👤 Processing final logo for user: ${responseId}`);
 
     let imageBuffer, contentType, fileExtension;
 
@@ -111,8 +111,8 @@ export const uploadFinalLogo = async (req, res) => {
     const timestamp = Date.now();
     const filename = `final_logo_${timestamp}.${fileExtension}`;
 
-    // Construct the S3 key using the userId as folder name
-    const s3Key = `${userId}/${filename}`;
+    // Construct the S3 key using the responseId as folder name
+    const s3Key = `${responseId}/${filename}`;
 
     console.log(`📤 Uploading to S3: ${s3Key} (${contentType})`);
 
@@ -131,7 +131,7 @@ export const uploadFinalLogo = async (req, res) => {
 
     // Update the user's survey response in MongoDB
     const updatedResponse = await SurveyResponse.findOneAndUpdate(
-      { userId },
+      { responseId },
       {
         $set: {
           final_logo: {
@@ -176,13 +176,13 @@ export const uploadFinalLogo = async (req, res) => {
  */
 export const getFinalLogo = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { responseId } = req.params;
 
-    if (!userId) {
-      return res.status(400).json({ error: "Missing userId parameter" });
+    if (!responseId) {
+      return res.status(400).json({ error: "Missing responseId parameter" });
     }
 
-    const surveyResponse = await SurveyResponse.findOne({ userId });
+    const surveyResponse = await SurveyResponse.findOne({ responseId });
 
     if (!surveyResponse) {
       return res.status(404).json({ error: "User not found" });
@@ -207,7 +207,7 @@ export const getFinalLogo = async (req, res) => {
       surveyResponse.final_logo.url = finalLogoUrl;
       await surveyResponse.save();
 
-      console.log(`🔄 Updated to public URL for ${userId}'s final logo`);
+      console.log(`🔄 Updated to public URL for ${responseId}'s final logo`);
     }
 
     return res.status(200).json({

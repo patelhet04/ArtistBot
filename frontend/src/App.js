@@ -11,7 +11,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* ✅ Load Chat Component with URL-based userId and condition */}
+        {/* ✅ Load Chat Component with URL-based responseId and condition */}
         <Route path="/chat" element={<Chat />} />
 
         {/* ✅ Redirect unknown routes to chat */}

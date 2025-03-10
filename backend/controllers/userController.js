@@ -5,10 +5,10 @@ import axios from "axios";
 // ✅ Controller to fetch images for a specific user
 export const getUserImages = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { responseId } = req.params;
 
     // Find user survey response with images
-    const userResponse = await SurveyResponse.findOne({ userId });
+    const userResponse = await SurveyResponse.findOne({ responseId });
 
     if (!userResponse || userResponse.work_samples.length === 0) {
       return res.status(404).json({ error: "No images found for this user" });
@@ -32,10 +32,10 @@ export const getUserImages = async (req, res) => {
 
 export const uploadUserLogo = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { responseId } = req.body;
     const uploadedFile = req.file;
 
-    if (!userId || !uploadedFile) {
+    if (!responseId || !uploadedFile) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -43,7 +43,7 @@ export const uploadUserLogo = async (req, res) => {
     const buffer = uploadedFile.buffer;
     const contentType = uploadedFile.mimetype;
     const ext = uploadedFile.originalname.split(".").pop();
-    const fileKey = `${userId}/final_logo.${ext}`;
+    const fileKey = `${responseId}/final_logo.${ext}`;
 
     // Upload to S3
     const s3Response = await uploadBufferToS3(buffer, fileKey, contentType);
@@ -53,7 +53,7 @@ export const uploadUserLogo = async (req, res) => {
 
     // Update database with the correct structure matching your schema
     const updatedResponse = await SurveyResponse.findOneAndUpdate(
-      { userId },
+      { responseId },
       {
         $set: {
           final_logo: {

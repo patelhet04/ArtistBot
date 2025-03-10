@@ -2,7 +2,11 @@
 import OpenAI from "openai";
 import dotenv from "dotenv";
 import SurveyResponse from "../models/SurveyResponse.js";
-import { addMessageToSession } from "../controllers/logsController.js";
+import {
+  addMessageToSession,
+  getFullChatContext,
+  endSession,
+} from "../controllers/logsController.js";
 import { CONDITIONS } from "../constants/conditionConstants.js";
 import { mapUrlConditionToInternal } from "../services/conditionService.js";
 
@@ -11,6 +15,13 @@ dotenv.config();
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// Maximum number of messages to include in context
+const MAX_CONTEXT_MESSAGES = 15;
+
+// Maximum token context window for the model (to avoid exceeding limits)
+const MAX_TOKENS = 32000; // for gpt-4-turbo
+const MAX_RESPONSE_TOKENS = 800; // Allow for longer responses
 
 // Helper function to enhance image prompts with professional logo guidelines
 const enhanceImagePrompt = (basePrompt) => {
@@ -71,30 +82,50 @@ const generateLogo = async (basePrompt) => {
 // Treatment condition prompts with descriptive names
 export const treatmentPrompts = {
   [CONDITIONS.GENERAL]:
-    "You are an AI creative assistant specialized in logo design. Start with a brief welcome message. Use phrases like 'I'm your assistant' and focus on understanding the user's logo needs.",
+    "You are a helpful creative assistant that helps users create logos. You are working with an experienced logo designer on this task. Start with a short welcoming message. Use phrases like “I’m your assistant”.",
 
   [CONDITIONS.PERSONALIZED_WITH_EXPLANATION]:
-    "You are an AI creative assistant specialized in logo design collaborating with experienced designers. Begin with a warm greeting, then highlight key elements of the user's distinctive style from their reference images. Be supportive and insightful about what makes their work special. Use phrases like 'I'm your personalized assistant' and explain how you're incorporating their specific style elements into the designs you suggest.",
+    "You are a helpful creative assistant that helps the user create logos. The user is an experienced logo designer. The user has provided three examples of their prior work. Analyze the style of the three images provided. Start with a warm welcoming message then summarize the key style elements of the artist. Be insightful and supportive highlighting what stands out about their style and offer to help create a logo that incorporates and builds on the unique style of the artist. Then start a conversation asking the user about their vision for the logo is. Use phrases like “I’m your personalized assistant”. When you generate images, you always provide explanations for why and how you incorporated the specific style of the user. Help the user create a logo that incorporates and builds on their unique style.",
 
   [CONDITIONS.PERSONALIZED_WITHOUT_EXPLANATION]:
-    "You are an AI creative assistant with expertise in logo design, collaborating with professional designers. I've studied your portfolio samples and have insights into your unique design approach. Be direct and focused - avoid explaining design theory or justifying style choices. Help create a logo that builds upon the user's distinctive style preferences.",
+    "You are a helpful creative assistant that helps users create logos. You are working with an experienced logo designer on this task. Analyze the style of the three images provided. Help the user create a logo that incorporates and builds on their unique style. Use phrases like “I’m your personalized assistant”. You don’t provide explanations what that their style is or how you are incorporating it. When you generate images, you never explain why you used a certain style. Begin the conversation by asking the user a question to understanding their vision for the logo is.",
+};
+
+// Helper function to check if a message might prompt logo generation
+const messageRequestsLogo = (message) => {
+  const logoKeywords = [
+    "logo",
+    "design",
+    "brand",
+    "create",
+    "make",
+    "generate",
+    "icon",
+    "symbol",
+    "emblem",
+    "trademark",
+    "identity",
+  ];
+
+  const messageLower = message.toLowerCase();
+  return logoKeywords.some((keyword) => messageLower.includes(keyword));
 };
 
 // Handler for initial greeting messages
 export const handleGreeting = async (req, res) => {
   try {
     console.log(
-      `📥 Received initial greeting request for userId: ${req.body.userId}`
+      `📥 Received initial greeting request for responseId: ${req.body.responseId}`
     );
-    const { userId, condition: urlCondition } = req.body;
+    const { responseId, condition: urlCondition } = req.body;
 
-    if (!userId) {
+    if (!responseId) {
       console.error("❌ Missing required fields in request");
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     // Find user in database
-    const userResponse = await SurveyResponse.findOne({ userId });
+    const userResponse = await SurveyResponse.findOne({ responseId });
     const isPersonalized = !!userResponse;
 
     const internalCondition =
@@ -169,7 +200,7 @@ export const handleGreeting = async (req, res) => {
     const apiResponse = await openai.chat.completions.create({
       model: modelToUse,
       messages: openaiMessages,
-      max_tokens: 400,
+      max_tokens: MAX_RESPONSE_TOKENS,
       temperature: 0.7,
     });
 
@@ -178,10 +209,13 @@ export const handleGreeting = async (req, res) => {
     // Get the assistant's reply
     const reply = apiResponse.choices[0].message.content;
 
-    // Log the assistant's reply
-    await addMessageToSession(userId, "assistant", reply, {
+    // Log the assistant's reply with the system prompt
+    await addMessageToSession(responseId, "assistant", reply, {
       condition: internalCondition,
       isInitialGreeting: true,
+      systemPrompt: systemPrompt,
+      hasWorkSamples: hasWorkSamples,
+      tokensUsed: apiResponse.usage?.total_tokens || 0,
     });
 
     // Return the greeting to the client
@@ -202,10 +236,10 @@ export const handleGreeting = async (req, res) => {
 
 export const handleChat = async (req, res) => {
   try {
-    console.log(`📥 Received chat request for userId: ${req.body.userId}`);
-    const { userId, message, condition: urlCondition } = req.body;
+    console.log(`📥 Received chat request for responseId: ${req.body.responseId}`);
+    const { responseId, message, condition: urlCondition } = req.body;
 
-    if (!userId || !message) {
+    if (!responseId || !message) {
       console.error("❌ Missing required fields in request");
       return res.status(400).json({ error: "Missing required fields" });
     }
@@ -213,17 +247,17 @@ export const handleChat = async (req, res) => {
     // Map URL condition parameter to internal condition
     const internalCondition = await mapUrlConditionToInternal(
       urlCondition,
-      userId
+      responseId
     );
 
     // Find user in database
-    const userResponse = await SurveyResponse.findOne({ userId });
+    const userResponse = await SurveyResponse.findOne({ responseId });
     const isPersonalized = !!userResponse;
 
     // Save the assigned condition if not already saved
     if (isPersonalized && !userResponse.assignedCondition) {
       await SurveyResponse.findOneAndUpdate(
-        { userId },
+        { responseId },
         { assignedCondition: internalCondition },
         { new: true }
       );
@@ -237,10 +271,21 @@ export const handleChat = async (req, res) => {
     );
 
     // Log user's message with condition
-    await addMessageToSession(userId, "user", message, {
+    await addMessageToSession(responseId, "user", message, {
       condition: internalCondition,
     });
     console.log(`📝 Logged user message to database`);
+
+    // Get the full conversation context
+    console.log(`📚 Retrieving conversation context for responseId: ${responseId}`);
+    const chatContext = await getFullChatContext(responseId);
+
+    // If no existing session found (rare case but possible),
+    // use default system prompt based on condition
+    const systemPrompt =
+      chatContext.systemPrompt ||
+      treatmentPrompts[internalCondition] ||
+      treatmentPrompts[CONDITIONS.GENERAL];
 
     const hasWorkSamples =
       isPersonalized && userResponse?.work_samples?.length > 0;
@@ -250,16 +295,11 @@ export const handleChat = async (req, res) => {
       );
     }
 
-    // Prepare the system prompt based on condition
-    console.log(`🔧 Preparing system prompt for ${internalCondition} user`);
-
     // Enhanced system prompt for general users to encourage logo generation
-    let systemPrompt;
+    let enhancedSystemPrompt;
     if (internalCondition === CONDITIONS.GENERAL) {
-      systemPrompt = `
-You are an AI creative assistant specialized in logo design. ${
-        treatmentPrompts[CONDITIONS.GENERAL]
-      }
+      enhancedSystemPrompt = `
+You are an AI creative assistant specialized in logo design. ${systemPrompt}
 
 IMPORTANT: When the user provides details about a logo they need, always suggest generating a logo based on their description.
 
@@ -271,10 +311,8 @@ You must respond in valid JSON format with these fields:
 }
 `;
     } else {
-      systemPrompt = `
-You are an AI creative assistant specialized in logo design. ${
-        treatmentPrompts[internalCondition] || ""
-      }
+      enhancedSystemPrompt = `
+You are an AI creative assistant specialized in logo design. ${systemPrompt}
 
 RESPONSE FORMAT:
 You must respond in valid JSON format with these fields:
@@ -286,10 +324,14 @@ You must respond in valid JSON format with these fields:
     }
 
     // Prepare messages for the API
-    let openaiMessages = [{ role: "system", content: systemPrompt }];
+    let openaiMessages = [{ role: "system", content: enhancedSystemPrompt }];
 
-    // Handle work samples for personalized users
+    // Handle work samples for personalized users if this is a new session
+    // (Only add work samples if they weren't already in the conversation)
+    const isFirstMessageInSession = chatContext.messages.length === 0;
+
     if (
+      isFirstMessageInSession &&
       hasWorkSamples &&
       (internalCondition === CONDITIONS.PERSONALIZED_WITH_EXPLANATION ||
         internalCondition === CONDITIONS.PERSONALIZED_WITHOUT_EXPLANATION)
@@ -324,11 +366,20 @@ You must respond in valid JSON format with these fields:
       });
     }
 
-    // Add the user's actual request
+    // Add conversation history (limited to last MAX_CONTEXT_MESSAGES)
+    const limitedMessages = chatContext.messages.slice(-MAX_CONTEXT_MESSAGES);
+    if (limitedMessages.length > 0) {
+      console.log(
+        `💬 Adding ${limitedMessages.length} previous messages for context`
+      );
+      openaiMessages = [...openaiMessages, ...limitedMessages];
+    }
+
+    // Add the user's current message
     openaiMessages.push({ role: "user", content: message });
     console.log(`💬 Final message count for API: ${openaiMessages.length}`);
 
-    // Select the appropriate model based on whether we need image analysis
+    // Select the appropriate model
     const modelToUse = "gpt-4-turbo";
     console.log(`🤖 Using model: ${modelToUse}`);
 
@@ -337,11 +388,15 @@ You must respond in valid JSON format with these fields:
     const apiResponse = await openai.chat.completions.create({
       model: modelToUse,
       messages: openaiMessages,
-      max_tokens: 600,
+      max_tokens: MAX_RESPONSE_TOKENS,
       temperature: 0.7,
       response_format: { type: "json_object" },
     });
     console.log(`✅ Received response from OpenAI API`);
+
+    // Track token usage
+    const tokensUsed = apiResponse.usage?.total_tokens || 0;
+    console.log(`📊 Total tokens used: ${tokensUsed}`);
 
     // Process the model's response
     const aiReplyText = apiResponse.choices[0].message.content;
@@ -399,10 +454,7 @@ You must respond in valid JSON format with these fields:
       // For general users, try to proactively generate a logo if the message seems to be describing logo requirements
       if (
         internalCondition === CONDITIONS.GENERAL &&
-        (message.toLowerCase().includes("logo") ||
-          message.toLowerCase().includes("design") ||
-          message.toLowerCase().includes("brand") ||
-          message.toLowerCase().includes("create"))
+        messageRequestsLogo(message)
       ) {
         console.log(
           `🔍 General user potentially requesting logo. Attempting to generate one.`
@@ -420,6 +472,7 @@ You must respond in valid JSON format with these fields:
           // Update the response to acknowledge the logo generation
           parsedResponse.reply +=
             "\n\nI've created a logo based on your description. Let me know what you think and if you'd like any changes!";
+          parsedResponse.imagePrompt = defaultImagePrompt;
         } else {
           console.log(`📊 Proactive logo generation complete: Failed`);
         }
@@ -435,9 +488,13 @@ You must respond in valid JSON format with these fields:
     console.log(
       `📝 Logging assistant reply and ${generatedImages.length} images to database`
     );
-    await addMessageToSession(userId, "assistant", parsedResponse.reply, {
+
+    await addMessageToSession(responseId, "assistant", parsedResponse.reply, {
       condition: internalCondition,
       images: generatedImages,
+      imagePrompt: parsedResponse.imagePrompt,
+      tokensUsed: tokensUsed,
+      hasImageContent: generatedImages.length > 0,
     });
 
     // Return the complete response to the client
@@ -457,4 +514,44 @@ You must respond in valid JSON format with these fields:
         process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
+};
+
+// Function to reset chat session
+export const resetChat = async (req, res) => {
+  try {
+    const { responseId } = req.body;
+
+    if (!responseId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // End the current active session
+    await endSession(responseId);
+    console.log(`🔄 Reset chat session for user ${responseId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Chat session has been reset",
+    });
+  } catch (error) {
+    console.error("❌ Error resetting chat session:", error);
+    return res.status(500).json({
+      error: "We encountered an issue while resetting the chat session.",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+// Helper function to estimate token count (rough estimate)
+// This is useful for monitoring token usage and keeping within limits
+const estimateTokenCount = (text) => {
+  // Very rough estimate: 1 token ~= 4 characters in English
+  return Math.ceil(text.length / 4);
+};
+
+export default {
+  handleGreeting,
+  handleChat,
+  resetChat,
 };

@@ -4,10 +4,10 @@ import axios from "axios";
 
 /**
  * Custom hook for handling logo uploads
- * @param {string} userId - The user ID
+ * @param {string} responseId - The user ID
  * @returns {object} - Logo submission state and handlers
  */
-export const useLogoSubmission = (userId) => {
+export const useLogoSubmission = (responseId) => {
   const [finalLogoFile, setFinalLogoFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -70,7 +70,7 @@ export const useLogoSubmission = (userId) => {
 
     try {
       const formData = new FormData();
-      formData.append("userId", userId);
+      formData.append("responseId", responseId);
       formData.append("logoFile", finalLogoFile);
 
       const response = await axios.post("/api/logos/submit", formData, {

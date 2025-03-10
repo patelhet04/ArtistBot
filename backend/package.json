@@ -4,6 +4,7 @@
   "main": "server.js",
   "scripts": {
     "start": "nodemon server.js",
+    "start:prod": "node server.js",
     "cloudflared": "cloudflared tunnel --url http://localhost:4000",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

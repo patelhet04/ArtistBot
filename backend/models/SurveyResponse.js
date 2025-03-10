@@ -12,7 +12,6 @@ const ImageSchema = new mongoose.Schema({
 const SurveyResponseSchema = new mongoose.Schema(
   {
     responseId: { type: String, required: true },
-    userId: { type: String, required: true },
     artist_experience: { type: String, required: true },
     work_samples: { type: [ImageSchema], required: true },
     final_logo: {
