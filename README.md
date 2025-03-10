@@ -1,1 +1,1 @@
-# ArtistBot
+# ArtistBot - Logo Generator
