@@ -2,20 +2,12 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-/**
- * Custom hook for handling chat messages
- * @param {string|null} responseId - The user ID (null for general users)
- * @param {string} condition - The user's condition (general or personalized)
- * @param {number} timeLeft - Time remaining in session
- * @returns {object} - Chat message state and handlers
- */
 export const useChatMessages = (responseId, condition, timeLeft) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loadingResponse, setLoadingResponse] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // Generate a temporary anonymous ID for general users if responseId is not provided
   const [temporaryId] = useState(() => {
     if (!responseId) {
       return `temp_${Math.random().toString(36).substring(2, 15)}`;
@@ -23,48 +15,53 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
     return null;
   });
 
-  // Use the real responseId if available, otherwise use the temporary one
   const effectiveresponseId = responseId || temporaryId;
 
   // Fetch initial greeting
   useEffect(() => {
+    let isMounted = true;
     setInitialLoading(true);
+    console.log(
+      `Fetching greeting for responseId: ${effectiveresponseId}, condition: ${condition}`
+    );
 
-    // Use the updated endpoint for greeting
     axios
       .post(`/api/greeting`, {
         responseId: effectiveresponseId,
-        condition: condition || "general", // Ensure a default if not provided
+        condition: condition || "general",
       })
       .then((res) => {
-        setMessages([
-          {
-            role: "assistant",
-            content: res.data.reply,
-            images: res.data.images || [],
-          },
-        ]);
-        setInitialLoading(false);
+        if (isMounted) {
+          setMessages([
+            {
+              role: "assistant",
+              content: res.data.reply,
+              images: res.data.images || [],
+            },
+          ]);
+          setInitialLoading(false);
+        }
       })
       .catch((err) => {
         console.error("Error fetching initial greeting:", err);
-        setInitialLoading(false);
-
-        // Fallback greeting message
-        setMessages([
-          {
-            role: "assistant",
-            content: "Welcome to Logo Design! How can I help you today?",
-          },
-        ]);
+        if (isMounted) {
+          setInitialLoading(false);
+          setMessages([
+            {
+              role: "assistant",
+              content: "Welcome to Logo Design! How can I help you today?",
+            },
+          ]);
+        }
       });
+
+    return () => {
+      isMounted = false;
+    }; // Cleanup to prevent state updates after unmount
   }, [effectiveresponseId, condition]);
 
-  // Send message function
   const sendMessage = async () => {
-    if (timeLeft <= 0 || !input.trim() || loadingResponse) {
-      return;
-    }
+    if (timeLeft <= 0 || !input.trim() || loadingResponse) return;
 
     try {
       setLoadingResponse(true);
@@ -74,18 +71,13 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
         condition: condition || "general",
       };
 
-      // Add user message immediately
       setMessages((prev) => [...prev, { role: "user", content: input }]);
-
-      // Reset input field
       setInput("");
 
-      // Send request to backend
       const response = await axios.post(`/api/chat`, payload, {
         headers: { "Content-Type": "application/json" },
       });
 
-      // Add assistant response with any generated images
       setMessages((prev) => [
         ...prev,
         {
@@ -99,8 +91,6 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
     } catch (err) {
       console.error("Error sending message:", err);
       setLoadingResponse(false);
-
-      // Show error message in chat
       setMessages((prev) => [
         ...prev,
         {
@@ -112,7 +102,6 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
     }
   };
 
-  // Handle key press
   const handleKeyDown = (e) => {
     if (
       e.key === "Enter" &&

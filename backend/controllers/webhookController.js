@@ -2,7 +2,7 @@ import axios from "axios";
 import AWS from "aws-sdk";
 import dotenv from "dotenv";
 import SurveyResponse from "../models/SurveyResponse.js";
-import { getBalancedPersonalizedCondition } from "../services/conditionAssignmentService.js";
+// import { getBalancedPersonalizedCondition } from "../services/conditionAssignmentService.js";
 import { CONDITIONS } from "../constants/conditionConstants.js";
 
 dotenv.config();
@@ -102,9 +102,6 @@ export const handleWebhook = async (req, res) => {
   try {
     console.log("📥 Received Webhook Data:", req.body);
 
-    // Generate a custom user I
-
-    // Extract required fields from the payload
     const {
       responseId,
       artist_experience,
@@ -113,7 +110,6 @@ export const handleWebhook = async (req, res) => {
       work_sample_3,
     } = req.body;
 
-    // Validate required fields
     if (
       !responseId ||
       !artist_experience ||
@@ -125,83 +121,63 @@ export const handleWebhook = async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Array of Qualtrics image URLs
+    // Process images
     const imageURLs = [work_sample_1, work_sample_2, work_sample_3];
 
-    // Process each image
     const work_samples = await Promise.all(
       imageURLs.map(async (url, index) => {
         try {
-          // Extract file ID from the URL
           const urlObj = new URL(url);
           const fileId = urlObj.searchParams.get("F");
-          if (!fileId) {
-            throw new Error("File ID not found in URL");
-          }
+          if (!fileId) throw new Error("File ID not found in URL");
 
-          // Construct Qualtrics API endpoint
           const qualtricsApiUrl = `https://${process.env.QUALTRICS_DATACENTER}.qualtrics.com/API/v3/surveys/${process.env.QUALTRICS_SURVEY_ID}/responses/${responseId}/uploaded-files/${fileId}`;
-          console.log("Constructed Qualtrics API URL:", qualtricsApiUrl);
 
-          // Download image data using Qualtrics API
           const apiResponse = await axios.get(qualtricsApiUrl, {
             responseType: "arraybuffer",
-            headers: {
-              "X-API-TOKEN": process.env.QUALTRICS_API_TOKEN,
-            },
+            headers: { "X-API-TOKEN": process.env.QUALTRICS_API_TOKEN },
           });
 
           const buffer = Buffer.from(apiResponse.data);
           const contentType = apiResponse.headers["content-type"];
-          console.log("Retrieved Content-Type:", contentType);
-
-          // Determine file extension
           const ext = getExtension(url, contentType);
-
-          // Construct S3 file key
           const fileKey = `${responseId}/work_sample_${index + 1}.${ext}`;
 
-          // Upload the image to S3
           const { s3Uri, url: publicUrl } = await uploadImageToS3(
             buffer,
             fileKey,
             contentType
           );
 
-          console.log(`✅ Uploaded image ${index + 1} to S3`);
-          console.log(`📂 S3 URI: ${s3Uri}`);
-          console.log(`🔗 Public URL: ${publicUrl}`);
-
           return {
             fileName: `work_sample_${index + 1}.${ext}`,
             url: publicUrl,
-            s3Uri: s3Uri,
+            s3Uri,
             uploadedAt: new Date(),
           };
         } catch (error) {
           console.error(
-            `❌ Error processing image from ${url}:`,
+            `❌ Error processing image ${index + 1}:`,
             error.message
           );
-          return null; // Skip this image if an error occurs
+          return null;
         }
       })
     );
 
-    // Filter out images that failed to process
+    // Filter out failed images
     const validWorkSamples = work_samples.filter((sample) => sample !== null);
 
-    // Ensure we have at least one valid work sample
     if (validWorkSamples.length === 0) {
       console.error("❌ Failed to process any work samples");
       return res.status(500).json({ error: "Failed to process work samples" });
     }
 
-    // Assign a balanced personalized condition for this new user
-    const assignedCondition = await getBalancedPersonalizedCondition();
-    console.log(`✅ Assigned condition to new user: ${assignedCondition}`);
+    // ✅ Always assign the default "PERSONALIZED" condition
+    const assignedCondition = CONDITIONS.PERSONALIZED;
+    console.log(`✅ Assigned default condition: ${assignedCondition}`);
 
-    // Save the survey response in MongoDB with assigned condition
+    // Save the response in the database
     const newResponse = await SurveyResponse.create({
       responseId,
       artist_experience,

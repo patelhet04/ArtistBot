@@ -28,14 +28,20 @@ export const useImagePreview = () => {
   };
 
   // Handle download button click
-  const handleDownloadClick = (imageUrl) => {
+  const handleDownloadClick = async (imageUrl) => {
+    if (!imageUrl) {
+      console.warn("⚠️ No image URL provided for download.");
+      return;
+    }
+
     try {
       const timestamp = new Date().toISOString().replace(/[-:.]/g, "");
       const filename = `logo-${timestamp}.png`;
-      downloadLogo(imageUrl, filename);
+
+      console.log(`📥 Initiating download for: ${filename}`);
+      await downloadLogo(imageUrl, filename);
     } catch (error) {
-      console.error("Error downloading image:", error);
-      alert("Failed to download image. The link may have expired.");
+      console.error("❌ Error in handleDownloadClick:", error);
     }
   };
 

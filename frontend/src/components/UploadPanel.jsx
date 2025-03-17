@@ -1,5 +1,5 @@
 // src/components/Chat/UploadPanel.jsx
-// Update the upload panel to match the new styling
+// Updated to properly handle image downloading
 
 import React from "react";
 import {
@@ -13,11 +13,14 @@ import {
 import {
   CloudUpload as CloudUploadIcon,
   CheckCircle as CheckCircleIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
 import { SidePanel, UploadZone } from "../styles/StyledComponents";
+import { downloadLogo } from "../utils/imageUtils";
 
 const UploadPanel = ({
   finalLogoFile,
+  selectedLogoUrl, // Add this prop to receive the URL of the selected logo
   uploadLoading,
   uploadSuccess,
   uploadError,
@@ -31,6 +34,13 @@ const UploadPanel = ({
   handleUploadClick,
   handleFinalSubmit,
 }) => {
+  // Function to handle logo download
+  const handleLogoDownload = async () => {
+    if (selectedLogoUrl) {
+      await downloadLogo(selectedLogoUrl, `generated_logo_${Date.now()}.png`);
+    }
+  };
+
   return (
     <SidePanel>
       <Typography variant="h6" gutterBottom>
@@ -46,10 +56,20 @@ const UploadPanel = ({
         </Box>
       ) : (
         <>
-          {/* <Typography variant="body2" sx={{ mb: 1.5 }}>
-            Download your favorite generated logo, then upload it here to submit
-            as your final design.
-          </Typography> */}
+
+          {/* Add a download button if we have a selected logo URL */}
+          {selectedLogoUrl && (
+            <Button
+              fullWidth
+              variant="outlined"
+              color="primary"
+              onClick={handleLogoDownload}
+              startIcon={<DownloadIcon />}
+              sx={{ mb: 1.5 }}
+            >
+              Download Selected Logo
+            </Button>
+          )}
 
           <UploadZone
             isDragActive={isDragActive}

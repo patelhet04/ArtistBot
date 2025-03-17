@@ -1,4 +1,4 @@
-// src/components/Chat/ChatBox.jsx
+// src/components/Chat/ChatBox.jsx - Fixed instruction box width
 import React, { useRef, useEffect } from "react";
 import {
   Box,
@@ -8,8 +8,9 @@ import {
   Grid,
   InputAdornment,
   IconButton,
+  Paper,
 } from "@mui/material";
-import { Send as SendIcon, Image as ImageIcon } from "@mui/icons-material";
+import { Send as SendIcon, Image as ImageIcon, Info as InfoIcon } from "@mui/icons-material";
 import {
   ChatBox as ChatBoxContainer,
   MessagesWrapper,
@@ -61,15 +62,56 @@ const ChatBox = ({
               {msg.role === "assistant" &&
                 msg.images &&
                 msg.images.length > 0 && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ mb: 1, fontWeight: "bold" }}
-                    >
-                      Generated Logo:
-                    </Typography>
+                  <Box sx={{ mt: 2, width: "100%", maxWidth: "100%" }}>
+                    <Box sx={{ display: "flex", alignItems: "flex-start", flexDirection: "column", width: "100%" }}>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ mb: 0.5, fontWeight: "bold" }}
+                      >
+                        Generated Logo:
+                      </Typography>
+                      
+                      {/* Download instructions - fixed width */}
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          mb: 1.5,
+                          px: 1.5,
+                          py: 1,
+                          fontSize: "0.75rem",
+                          color: "text.secondary",
+                          bgcolor: "rgba(0, 0, 0, 0.02)",
+                          boxSizing: "border-box",
+                          width: "100%",
+                          maxWidth: "100%",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          alignSelf: "stretch",
+                        }}
+                      >
+                        <InfoIcon 
+                          fontSize="small" 
+                          sx={{ 
+                            mr: 1, 
+                            fontSize: "0.9rem", 
+                            mt: "1px",
+                            color: "action.active",
+                            flexShrink: 0,
+                          }} 
+                        />
+                        <Typography 
+                          variant="caption"
+                          sx={{
+                            wordBreak: "break-word",
+                            width: "100%",
+                          }}
+                        >
+                          Click "Download" to open the image in a new tab, or right-click on the image to save it directly.
+                        </Typography>
+                      </Paper>
+                    </Box>
 
-                    <Grid container spacing={2}>
+                    <Grid container spacing={2} sx={{ width: "100%", m: 0 }}>
                       {msg.images.map((imgUrl, imgIdx) => (
                         <GeneratedLogoItem
                           key={imgIdx}
