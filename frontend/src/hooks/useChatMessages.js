@@ -10,7 +10,7 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
 
   const [temporaryId] = useState(() => {
     if (!responseId) {
-      return `temp_${Math.random().toString(36).substring(2, 15)}`;
+      return `general_${Math.random().toString(36).substring(2, 15)}`;
     }
     return null;
   });
@@ -123,5 +123,6 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
     handleKeyDown,
     loadingResponse,
     initialLoading,
+    effectiveresponseId,
   };
 };

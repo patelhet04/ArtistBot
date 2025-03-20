@@ -141,7 +141,9 @@ export const handleWebhook = async (req, res) => {
           const buffer = Buffer.from(apiResponse.data);
           const contentType = apiResponse.headers["content-type"];
           const ext = getExtension(url, contentType);
-          const fileKey = `${responseId}/work_sample_${index + 1}.${ext}`;
+          const fileKey = `${responseId}/work_sample_${
+            index + 1
+          }.${ext}`;
 
           const { s3Uri, url: publicUrl } = await uploadImageToS3(
             buffer,
@@ -198,69 +200,6 @@ export const handleWebhook = async (req, res) => {
 };
 
 /**
- * Handle saving the final selected logo
- */
-export const handleFinalLogo = async (req, res) => {
-  try {
-    // Validate required fields
-    const { responseId, finalLogoUrl } = req.body;
-    if (!responseId || !finalLogoUrl) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    // Download the final logo image
-    const fileResponse = await axios.get(finalLogoUrl, {
-      responseType: "arraybuffer",
-    });
-    const buffer = Buffer.from(fileResponse.data);
-    const contentType = fileResponse.headers["content-type"];
-    console.log("Final logo Content-Type:", contentType);
-
-    // Determine proper file extension
-    const ext = getExtension(finalLogoUrl, contentType);
-
-    // Construct a file key for the final logo
-    const fileKey = `${responseId}/final_logo.${ext}`;
-
-    // Upload the final logo to S3
-    const { s3Uri, url: publicUrl } = await uploadImageToS3(
-      buffer,
-      fileKey,
-      contentType
-    );
-
-    // Update the SurveyResponse document
-    const updatedResponse = await SurveyResponse.findOneAndUpdate(
-      { responseId },
-      {
-        $set: {
-          final_logo: {
-            fileName: `final_logo.${ext}`,
-            url: publicUrl,
-            s3Uri: s3Uri,
-            uploadedAt: new Date(),
-          },
-        },
-      },
-      { new: true }
-    );
-
-    if (!updatedResponse) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    console.log("✅ Final logo saved:", updatedResponse.final_logo);
-    return res.status(200).json({
-      message: "Final logo saved successfully",
-      finalLogo: updatedResponse.final_logo,
-    });
-  } catch (error) {
-    console.error("❌ Error saving final logo:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-/**
  * This function is kept for backward compatibility,
  * but is less necessary with public URLs that don't expire
  */
@@ -311,7 +250,6 @@ export const refreshPresignedUrls = async (responseId) => {
 // Export functions
 export default {
   handleWebhook,
-  handleFinalLogo,
   refreshPresignedUrls,
   uploadImageToS3,
 };

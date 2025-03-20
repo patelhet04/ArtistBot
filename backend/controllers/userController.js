@@ -1,6 +1,5 @@
 import { uploadBufferToS3 } from "../middleware/s3Utils.js";
 import SurveyResponse from "../models/SurveyResponse.js";
-import axios from "axios";
 
 // ✅ Controller to fetch images for a specific user
 export const getUserImages = async (req, res) => {
@@ -35,7 +34,8 @@ export const uploadUserLogo = async (req, res) => {
     const { responseId } = req.body;
     const uploadedFile = req.file;
 
-    if (!responseId || !uploadedFile) {
+    console.log("🔴 responseId:", responseId);
+    if (!uploadedFile) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
@@ -47,18 +47,37 @@ export const uploadUserLogo = async (req, res) => {
 
     // Upload to S3
     const s3Response = await uploadBufferToS3(buffer, fileKey, contentType);
-
-    // Extract just the URL string from the S3 response object
     const publicUrl = s3Response.url;
 
-    // Update database with the correct structure matching your schema
+    // Check if it's a general user
+    if (responseId.startsWith('general_')) {
+      // Create new general user in survey response
+      const newGeneralUser = await SurveyResponse.create({
+        responseId,
+        assignedCondition: 'general',
+        isGeneralUser: true,
+        final_logo: {
+          fileName: uploadedFile.originalname,
+          url: publicUrl,
+          uploadedAt: new Date(),
+        }
+      });
+
+      console.log("✅ Final logo saved for general user:", newGeneralUser.final_logo);
+      return res.status(200).json({
+        message: "Final logo saved successfully for general user",
+        finalLogo: newGeneralUser.final_logo,
+      });
+    }
+
+    // For survey users, update existing record
     const updatedResponse = await SurveyResponse.findOneAndUpdate(
       { responseId },
       {
         $set: {
           final_logo: {
             fileName: uploadedFile.originalname,
-            url: publicUrl, // Now correctly storing just the string URL
+            url: publicUrl,
             uploadedAt: new Date(),
           },
         },
@@ -66,7 +85,7 @@ export const uploadUserLogo = async (req, res) => {
       { new: true }
     );
 
-    console.log("✅ Final logo saved:", updatedResponse.final_logo);
+    console.log("✅ Final logo saved for survey user:", updatedResponse.final_logo);
     return res.status(200).json({
       message: "Final logo saved successfully",
       finalLogo: updatedResponse.final_logo,

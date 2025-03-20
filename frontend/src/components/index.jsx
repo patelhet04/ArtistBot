@@ -47,6 +47,7 @@ const Chat = () => {
     handleKeyDown,
     loadingResponse,
     initialLoading,
+    effectiveresponseId,
   } = useChatMessages(responseId, condition, timeLeft);
 
   const {
@@ -63,7 +64,7 @@ const Chat = () => {
     handleDrop,
     handleUploadClick,
     handleFinalSubmit,
-  } = useLogoSubmission(responseId);
+  } = useLogoSubmission(responseId || effectiveresponseId);
 
   const {
     previewOpen,
