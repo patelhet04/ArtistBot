@@ -11,6 +11,7 @@ import ChatBox from "./ChatBox";
 import InstructionsPanel from "./InstructionsPanel";
 import UploadPanel from "./UploadPanel";
 import ImagePreviewDialog from "./ImagePreviewDialog";
+import CompletionScreen from "./CompletionScreen";
 
 // Import styled components
 import {
@@ -24,6 +25,13 @@ import {
 import { useChatMessages } from "../hooks/useChatMessages";
 import { useLogoSubmission } from "../hooks/useLogoSubmission";
 import { useImagePreview } from "../hooks/useImagePreview";
+
+// Define valid conditions
+const VALID_CONDITIONS = {
+  G: "g", // General
+  P: "p", // Personalized
+  F: "f", // Personalized with explanation
+};
 
 const Chat = () => {
   const [searchParams] = useSearchParams();
@@ -48,6 +56,8 @@ const Chat = () => {
     loadingResponse,
     initialLoading,
     effectiveresponseId,
+    error,
+    condition: normalizedCondition,
   } = useChatMessages(responseId, condition, timeLeft);
 
   const {
@@ -92,9 +102,12 @@ const Chat = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Load personalized images if applicable
+  // Load personalized images if applicable (for both p and f conditions)
   useEffect(() => {
-    if (responseId && condition === "personalized") {
+    if (
+      responseId &&
+      (normalizedCondition === "p" || normalizedCondition === "f")
+    ) {
       setLoadingImages(true);
       axios
         .get(`/api/response/${responseId}/images`)
@@ -108,83 +121,87 @@ const Chat = () => {
           setLoadingImages(false);
         });
     }
-  }, [responseId, condition]);
+  }, [responseId, normalizedCondition]);
 
   return (
     <Box
       sx={{
-        backgroundColor: "#f5f7fa", // Add subtle background color
+        backgroundColor: "#f5f7fa",
         minHeight: "100vh",
-        padding: { xs: 1, sm: 2 }, // Responsive padding
+        padding: { xs: 1, sm: 2 },
         display: "flex",
         justifyContent: "center",
         alignItems: "flex-start",
         pt: 3,
       }}
     >
-      <ChatContainer>
-        {/* Header with Timer */}
-        <ChatHeader timeLeft={timeLeft} />
+      {uploadSuccess ? (
+        <CompletionScreen responseId={responseId || effectiveresponseId} />
+      ) : (
+        <ChatContainer>
+          {/* Header with Timer */}
+          <ChatHeader timeLeft={timeLeft} />
 
-        {/* Reference Images (Personalized condition only) */}
-        <ReferenceImagesPanel
-          condition={condition}
-          images={images}
-          loadingImages={loadingImages}
-          openPreview={openPreview}
-        />
+          {/* Reference Images (Personalized conditions only) */}
+          <ReferenceImagesPanel
+            condition={normalizedCondition}
+            images={images}
+            loadingImages={loadingImages}
+            openPreview={openPreview}
+          />
 
-        {/* Main Content Area - Side by Side Layout */}
-        <MainContentWrapper>
-          {/* Left Side - Chat Area */}
-          <ChatSection>
-            <ChatBox
-              messages={messages}
-              input={input}
-              setInput={setInput}
-              sendMessage={sendMessage}
-              handleKeyDown={handleKeyDown}
-              loadingResponse={loadingResponse}
-              sessionEnded={sessionEnded || uploadSuccess}
-              initialLoading={initialLoading}
-              selectedLogo={selectedLogo}
-              handleLogoClick={handleLogoClick}
-              openPreview={openPreview}
-              handleDownloadClick={handleDownloadClick}
-              condition={condition}
-            />
-          </ChatSection>
+          {/* Main Content Area - Side by Side Layout */}
+          <MainContentWrapper>
+            {/* Left Side - Chat Area */}
+            <ChatSection>
+              <ChatBox
+                messages={messages}
+                input={input}
+                setInput={setInput}
+                sendMessage={sendMessage}
+                handleKeyDown={handleKeyDown}
+                loadingResponse={loadingResponse}
+                sessionEnded={sessionEnded || uploadSuccess}
+                initialLoading={initialLoading}
+                selectedLogo={selectedLogo}
+                handleLogoClick={handleLogoClick}
+                openPreview={openPreview}
+                handleDownloadClick={handleDownloadClick}
+                condition={normalizedCondition}
+                error={error}
+              />
+            </ChatSection>
 
-          {/* Right Side - Instructions and Upload */}
-          <SideSection>
-            <InstructionsPanel />
+            {/* Right Side - Instructions and Upload */}
+            <SideSection>
+              <InstructionsPanel />
+              <UploadPanel
+                finalLogoFile={finalLogoFile}
+                uploadLoading={uploadLoading}
+                uploadSuccess={uploadSuccess}
+                uploadError={uploadError}
+                isDragActive={isDragActive}
+                fileInputRef={fileInputRef}
+                handleFileUpload={handleFileUpload}
+                handleDragEnter={handleDragEnter}
+                handleDragLeave={handleDragLeave}
+                handleDragOver={handleDragOver}
+                handleDrop={handleDrop}
+                handleUploadClick={handleUploadClick}
+                handleFinalSubmit={handleFinalSubmit}
+                sessionEnded={sessionEnded}
+              />
+            </SideSection>
+          </MainContentWrapper>
 
-            <UploadPanel
-              finalLogoFile={finalLogoFile}
-              uploadLoading={uploadLoading}
-              uploadSuccess={uploadSuccess}
-              uploadError={uploadError}
-              isDragActive={isDragActive}
-              fileInputRef={fileInputRef}
-              handleFileUpload={handleFileUpload}
-              handleDragEnter={handleDragEnter}
-              handleDragLeave={handleDragLeave}
-              handleDragOver={handleDragOver}
-              handleDrop={handleDrop}
-              handleUploadClick={handleUploadClick}
-              handleFinalSubmit={handleFinalSubmit}
-            />
-          </SideSection>
-        </MainContentWrapper>
-
-        {/* Image Preview Dialog */}
-        <ImagePreviewDialog
-          open={previewOpen}
-          onClose={closePreview}
-          imageUrl={previewUrl}
-          handleDownloadClick={handleDownloadClick}
-        />
-      </ChatContainer>
+          {/* Image Preview Dialog */}
+          <ImagePreviewDialog
+            open={previewOpen}
+            onClose={closePreview}
+            imageUrl={previewUrl}
+          />
+        </ChatContainer>
+      )}
     </Box>
   );
 };

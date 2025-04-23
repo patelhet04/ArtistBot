@@ -45,96 +45,133 @@ const generateLogo = async (basePrompt) => {
 export const handleGreeting = async (req, res) => {
   const requestId = Math.random().toString(36).substring(2);
   try {
-    const { responseId } = req.body;
+    const { responseId, condition } = req.body;
+
     console.log(
-      `📥 [${requestId}] Received greeting request for responseId: ${responseId}`
+      `📥 [${requestId}] Received greeting request for responseId: ${responseId} with condition: ${condition}`
     );
 
-    if (!responseId) {
-      console.error(`❌ [${requestId}] Missing required fields in request`);
-      return res.status(400).json({ error: "Missing required fields" });
+    // Validate condition
+    if (!Object.values(CONDITIONS).includes(condition)) {
+      return res.status(400).json({ error: "Invalid condition" });
     }
 
-    const userResponse = await SurveyResponse.findOne({ responseId });
-    const assignedCondition =
-      userResponse?.assignedCondition || CONDITIONS.GENERAL;
-    const hasWorkSamples = userResponse?.work_samples?.length > 0;
+    // For personalized conditions, check if user has images
+    let hasImages = false;
+    if (
+      condition === CONDITIONS.PERSONALIZED ||
+      condition === CONDITIONS.PERSONALIZED_WITH_EXPLANATION
+    ) {
+      const userResponse = await SurveyResponse.findOne({ responseId });
+      hasImages = userResponse?.work_samples?.length > 0;
 
-    const systemPrompt = treatmentPrompts[assignedCondition];
-    const openaiMessages = [{ role: "system", content: systemPrompt }];
-
-    if (hasWorkSamples) {
-      userResponse.work_samples.forEach((image, index) => {
-        openaiMessages.push({
-          role: "user",
-          content: [
-            { type: "text", text: `Work sample ${index + 1}:` },
-            { type: "image_url", image_url: { url: image.url } },
-          ],
-        });
-      });
-      openaiMessages.push({
-        role: "user",
-        content: "Analyze my design style based on these images and greet me.",
-      });
-    } else {
-      openaiMessages.push({
-        role: "user",
-        content: "Provide a friendly welcome message for a new user.",
-      });
+      // If no images found for personalized conditions, fall back to general
+      if (!hasImages) {
+        console.log(
+          `⚠️ [${requestId}] No images found for personalized condition, falling back to general`
+        );
+        condition = CONDITIONS.GENERAL;
+      }
     }
 
-    const apiResponse = await openai.chat.completions.create({
+    // Get the appropriate prompt based on condition
+    const prompt = treatmentPrompts[condition];
+    console.log(`🔍 [${requestId}] Using prompt: ${prompt}`);
+
+    // Get user's images if available
+    let imageUrls = [];
+    if (hasImages) {
+      const userResponse = await SurveyResponse.findOne({ responseId });
+      imageUrls = userResponse.work_samples.map((sample) => sample.url);
+    }
+
+    // Generate greeting message
+    const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo",
-      messages: openaiMessages,
+      messages: [
+        {
+          role: "system",
+          content: prompt,
+        },
+        {
+          role: "user",
+          content: hasImages
+            ? [
+                {
+                  type: "text",
+                  text: "Here are my work samples. Please analyze them and help me create a logo that matches my style.",
+                },
+                ...imageUrls.map((url) => ({
+                  type: "image_url",
+                  image_url: { url },
+                })),
+              ]
+            : "Start the conversation.",
+        },
+      ],
       max_tokens: MAX_RESPONSE_TOKENS,
-      temperature: 0.7,
     });
 
-    console.log(`✅ [${requestId}] Received greeting response`);
-    const reply = apiResponse.choices[0].message.content;
+    const greeting = completion.choices[0].message.content;
 
-    await addMessageToSession(responseId, "assistant", reply, {
-      condition: assignedCondition,
-      isInitialGreeting: true,
-      systemPrompt,
-      hasWorkSamples,
-      tokensUsed: apiResponse.usage?.total_tokens || 0,
-    });
+    // Log the interaction
+    await addMessageToSession(responseId, "assistant", greeting);
 
-    return res.status(200).json({ reply, images: [] });
+    res.json({ greeting });
   } catch (error) {
     console.error(`❌ [${requestId}] Error in handleGreeting:`, error);
-    return res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const handleChat = async (req, res) => {
   const requestId = Math.random().toString(36).substring(2);
   try {
-    const { responseId, message } = req.body;
+    const { condition, responseId, message } = req.body;
+
     console.log(
-      `📥 [${requestId}] Received chat request for responseId: ${responseId}`
+      `📥 [${requestId}] Received chat request for responseId: ${responseId} with condition: ${condition}`
     );
 
-    if (!responseId || !message) {
+    if (!responseId || !message || !condition) {
       console.error(`❌ [${requestId}] Missing required fields`);
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const userResponse = await SurveyResponse.findOne({ responseId });
-    const assignedCondition =
-      userResponse?.assignedCondition || CONDITIONS.GENERAL;
+    // Validate condition
+    if (!Object.values(CONDITIONS).includes(condition)) {
+      return res.status(400).json({ error: "Invalid condition" });
+    }
 
-    await addMessageToSession(responseId, "user", message, {
-      condition: assignedCondition,
-    });
+    // For personalized conditions, check if user has images
+    let hasImages = false;
+    if (
+      condition === CONDITIONS.PERSONALIZED ||
+      condition === CONDITIONS.PERSONALIZED_WITH_EXPLANATION
+    ) {
+      const userResponse = await SurveyResponse.findOne({ responseId });
+      hasImages = userResponse?.work_samples?.length > 0;
 
+      // If no images found for personalized conditions, fall back to general
+      if (!hasImages) {
+        console.log(
+          `⚠️ [${requestId}] No images found for personalized condition, falling back to general`
+        );
+        condition = CONDITIONS.GENERAL;
+      }
+    }
+
+    // Get the appropriate prompt based on condition
+    const prompt = treatmentPrompts[condition];
+
+    // Get chat context
     const chatContext = (await getFullChatContext(responseId)) || {
       messages: [],
     };
+
+    // Prepare system prompt with condition-specific instructions
     const systemPrompt = `
-    ${treatmentPrompts[assignedCondition]}
+    ${prompt}
     IMPORTANT: Respond in valid JSON format. Only include "imagePrompt" when the user explicitly requests a logo, such as:
       - "Generate a logo for me"
       - "Create a logo"
@@ -146,7 +183,7 @@ export const handleChat = async (req, res) => {
       "reply": "Your response message",
       "imagePrompt": "Logo description or null"
     }
-        `;
+    `;
 
     const openaiMessages = [
       { role: "system", content: systemPrompt },
@@ -192,7 +229,7 @@ export const handleChat = async (req, res) => {
     const generatedImages = generatedImageUrl ? [generatedImageUrl] : [];
 
     await addMessageToSession(responseId, "assistant", parsedResponse.reply, {
-      condition: assignedCondition,
+      condition,
       images: generatedImages,
       imagePrompt: parsedResponse.imagePrompt,
       tokensUsed: apiResponse.usage?.total_tokens || 0,

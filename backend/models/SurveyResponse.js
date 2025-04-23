@@ -1,6 +1,5 @@
 // models/SurveyResponse.js
 import mongoose from "mongoose";
-import { CONDITIONS } from "../constants/conditionConstants.js";
 
 const ImageSchema = new mongoose.Schema({
   fileName: { type: String, required: false },
@@ -18,12 +17,6 @@ const SurveyResponseSchema = new mongoose.Schema(
       fileName: { type: String },
       url: { type: String },
       uploadedAt: { type: Date },
-    },
-    // Add the assignedCondition field
-    assignedCondition: {
-      type: String,
-      enum: Object.values(CONDITIONS),
-      default: null,
     },
   },
   { timestamps: true }

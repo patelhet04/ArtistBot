@@ -49,28 +49,7 @@ export const uploadUserLogo = async (req, res) => {
     const s3Response = await uploadBufferToS3(buffer, fileKey, contentType);
     const publicUrl = s3Response.url;
 
-    // Check if it's a general user
-    if (responseId.startsWith('general_')) {
-      // Create new general user in survey response
-      const newGeneralUser = await SurveyResponse.create({
-        responseId,
-        assignedCondition: 'general',
-        isGeneralUser: true,
-        final_logo: {
-          fileName: uploadedFile.originalname,
-          url: publicUrl,
-          uploadedAt: new Date(),
-        }
-      });
-
-      console.log("✅ Final logo saved for general user:", newGeneralUser.final_logo);
-      return res.status(200).json({
-        message: "Final logo saved successfully for general user",
-        finalLogo: newGeneralUser.final_logo,
-      });
-    }
-
-    // For survey users, update existing record
+    // Update or create user record
     const updatedResponse = await SurveyResponse.findOneAndUpdate(
       { responseId },
       {
@@ -82,10 +61,10 @@ export const uploadUserLogo = async (req, res) => {
           },
         },
       },
-      { new: true }
+      { new: true, upsert: true }
     );
 
-    console.log("✅ Final logo saved for survey user:", updatedResponse.final_logo);
+    console.log("✅ Final logo saved:", updatedResponse.final_logo);
     return res.status(200).json({
       message: "Final logo saved successfully",
       finalLogo: updatedResponse.final_logo,

@@ -1,12 +1,11 @@
 // ChatSession.js
 import mongoose from "mongoose";
-import { CONDITIONS } from "../constants/conditionConstants.js";
 
 const messageSchema = new mongoose.Schema({
   role: {
     type: String,
     required: true,
-    enum: ["user", "assistant", "system"], // Added "system" as a valid role
+    enum: ["user", "assistant", "system"],
   },
   content: {
     type: String,
@@ -21,15 +20,15 @@ const messageSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
-  // Track if this is a message that contains image content (for multimodal models)
-  hasImageContent: {
-    type: Boolean,
-    default: false,
-  },
   // Store original imagePrompt if applicable
   imagePrompt: {
     type: String,
     default: null,
+  },
+  // Track token usage for this message
+  tokensUsed: {
+    type: Number,
+    default: 0,
   },
 });
 
@@ -53,30 +52,19 @@ const chatSessionSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    // Track which condition the user was in for analysis
-    condition: {
-      type: String,
-      enum: Object.values(CONDITIONS), // Use the values from your constants file
-      required: true,
-    },
     // Store system prompt for this conversation to maintain context
     systemPrompt: {
       type: String,
       required: true,
     },
-    // Track if this session involves personalization or work samples
-    hasWorkSamples: {
-      type: Boolean,
-      default: false,
-    },
-    // Track token usage for the session (useful for monitoring)
+    // Track token usage for the session
     totalTokensUsed: {
       type: Number,
       default: 0,
     },
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt fields automatically
+    timestamps: true,
   }
 );
 

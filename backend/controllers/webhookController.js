@@ -141,9 +141,7 @@ export const handleWebhook = async (req, res) => {
           const buffer = Buffer.from(apiResponse.data);
           const contentType = apiResponse.headers["content-type"];
           const ext = getExtension(url, contentType);
-          const fileKey = `${responseId}/work_sample_${
-            index + 1
-          }.${ext}`;
+          const fileKey = `${responseId}/work_sample_${index + 1}.${ext}`;
 
           const { s3Uri, url: publicUrl } = await uploadImageToS3(
             buffer,
@@ -175,23 +173,17 @@ export const handleWebhook = async (req, res) => {
       return res.status(500).json({ error: "Failed to process work samples" });
     }
 
-    // ✅ Always assign the default "PERSONALIZED" condition
-    const assignedCondition = CONDITIONS.PERSONALIZED;
-    console.log(`✅ Assigned default condition: ${assignedCondition}`);
-
     // Save the response in the database
     const newResponse = await SurveyResponse.create({
       responseId,
       artist_experience,
       work_samples: validWorkSamples,
-      assignedCondition,
     });
 
     console.log("✅ Survey Response Saved:", newResponse);
     res.status(200).json({
       message: "Webhook received and images saved successfully",
       responseId,
-      assignedCondition,
     });
   } catch (error) {
     console.error("❌ Error processing webhook:", error);

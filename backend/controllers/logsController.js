@@ -1,36 +1,18 @@
 // logsController.js
-import { CONDITIONS } from "../constants/conditionConstants.js";
 import ChatSession from "../models/ChatSession.js";
 
 /**
  * Creates a new chat session for a user
  * @param {string} responseId - The user identifier
- * @param {string} condition - The condition for this session
  * @param {string} systemPrompt - The system prompt used for this session
- * @param {boolean} hasWorkSamples - Whether this session involves work samples
  * @returns {Promise<Object>} The created session
  */
-export async function createChatSession(
-  responseId,
-  condition,
-  systemPrompt,
-  hasWorkSamples = false
-) {
+export async function createChatSession(responseId, systemPrompt) {
   try {
-    // Validate the condition value against the allowed values
-    if (!Object.values(CONDITIONS).includes(condition)) {
-      console.warn(
-        `Invalid condition value: ${condition}, defaulting to ${CONDITIONS.GENERAL}`
-      );
-      condition = CONDITIONS.GENERAL;
-    }
-
     // Create a new session
     const session = new ChatSession({
       responseId,
-      condition,
       systemPrompt,
-      hasWorkSamples,
     });
 
     // Add the system prompt as first message to maintain context properly
@@ -41,9 +23,7 @@ export async function createChatSession(
     });
 
     await session.save();
-    console.log(
-      `Created new chat session for user ${responseId} with condition ${condition}`
-    );
+    console.log(`Created new chat session for user ${responseId}`);
     return session;
   } catch (error) {
     console.error("Error creating chat session:", error);
@@ -52,16 +32,11 @@ export async function createChatSession(
 }
 
 /**
- * Adds a message to an active user session or creates a new session
+ * Adds a message to an existing chat session
  * @param {string} responseId - The user identifier
- * @param {string} role - Either "user" or "assistant"
+ * @param {string} role - The role of the message sender (user/assistant)
  * @param {string} content - The message content
- * @param {object} options - Additional options
- * @param {string[]} options.images - Optional array of image URLs for assistant messages
- * @param {string} options.condition - The user's condition (general or personalized)
- * @param {string} options.systemPrompt - System prompt if creating a new session
- * @param {string} options.imagePrompt - The image prompt used (if applicable)
- * @param {number} options.tokensUsed - Tokens used for this message (if known)
+ * @param {Object} options - Additional options (images, imagePrompt, tokensUsed)
  * @returns {Promise<Object>} The updated session
  */
 export async function addMessageToSession(
@@ -71,56 +46,20 @@ export async function addMessageToSession(
   options = {}
 ) {
   try {
-    // Find or create an active session
-    let session = await ChatSession.findOne({
-      responseId,
-      isActive: true,
-    });
+    let session = await ChatSession.findOne({ responseId });
 
     if (!session) {
-      // Ensure condition is provided when creating a new session
-      if (!options.condition) {
-        throw new Error("Condition is required when creating a new session");
-      }
-
-      // Ensure system prompt is provided
-      if (!options.systemPrompt) {
-        console.warn("No system prompt provided, using default");
-        options.systemPrompt = "You are a helpful AI assistant.";
-      }
-
-      // Create a new session
-      session = await createChatSession(
-        responseId,
-        options.condition,
-        options.systemPrompt,
-        !!options.hasWorkSamples
-      );
+      // Create a new session if none exists
+      session = await createChatSession(responseId, "");
     }
 
-    // Create the message object
     const message = {
       role,
       content,
       timestamp: new Date(),
+      ...options,
     };
 
-    // Add image URLs if provided for assistant messages
-    if (role === "assistant" && options.images && options.images.length > 0) {
-      message.images = options.images;
-    }
-
-    // Add image prompt if provided
-    if (options.imagePrompt) {
-      message.imagePrompt = options.imagePrompt;
-    }
-
-    // Update token usage if provided
-    if (options.tokensUsed) {
-      session.totalTokensUsed += options.tokensUsed;
-    }
-
-    // Add the message to the session
     session.messages.push(message);
     await session.save();
 

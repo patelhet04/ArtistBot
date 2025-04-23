@@ -2,11 +2,24 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
+// Define valid conditions matching backend codes
+const VALID_CONDITIONS = {
+  G: "g", // General
+  P: "p", // Personalized
+  F: "f", // Personalized with explanation
+};
+
+// Helper function to validate condition
+const isValidCondition = (condition) => {
+  return Object.values(VALID_CONDITIONS).includes(condition);
+};
+
 export const useChatMessages = (responseId, condition, timeLeft) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loadingResponse, setLoadingResponse] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [temporaryId] = useState(() => {
     if (!responseId) {
@@ -17,25 +30,43 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
 
   const effectiveresponseId = responseId || temporaryId;
 
+  // Validate and normalize condition
+  const normalizedCondition = isValidCondition(condition)
+    ? condition
+    : VALID_CONDITIONS.G;
+
+  // Log condition changes
+  useEffect(() => {
+    console.log(`Condition changed to: ${normalizedCondition}`);
+  }, [normalizedCondition]);
+
   // Fetch initial greeting
   useEffect(() => {
     let isMounted = true;
     setInitialLoading(true);
+    setError(null);
+
+    if (!isValidCondition(normalizedCondition)) {
+      setError("Invalid condition parameter");
+      setInitialLoading(false);
+      return;
+    }
+
     console.log(
-      `Fetching greeting for responseId: ${effectiveresponseId}, condition: ${condition}`
+      `Fetching greeting for responseId: ${effectiveresponseId}, condition: ${normalizedCondition}`
     );
 
     axios
       .post(`/api/greeting`, {
         responseId: effectiveresponseId,
-        condition: condition || "general",
+        condition: normalizedCondition,
       })
       .then((res) => {
         if (isMounted) {
           setMessages([
             {
               role: "assistant",
-              content: res.data.reply,
+              content: res.data.greeting,
               images: res.data.images || [],
             },
           ]);
@@ -46,6 +77,9 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
         console.error("Error fetching initial greeting:", err);
         if (isMounted) {
           setInitialLoading(false);
+          setError(
+            err.response?.data?.error || "Failed to load initial greeting"
+          );
           setMessages([
             {
               role: "assistant",
@@ -57,18 +91,24 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
 
     return () => {
       isMounted = false;
-    }; // Cleanup to prevent state updates after unmount
-  }, [effectiveresponseId, condition]);
+    };
+  }, [effectiveresponseId, normalizedCondition]);
 
   const sendMessage = async () => {
     if (timeLeft <= 0 || !input.trim() || loadingResponse) return;
 
     try {
       setLoadingResponse(true);
+      setError(null);
+
+      if (!isValidCondition(normalizedCondition)) {
+        throw new Error("Invalid condition parameter");
+      }
+
       const payload = {
         responseId: effectiveresponseId,
         message: input,
-        condition: condition || "general",
+        condition: normalizedCondition,
       };
 
       setMessages((prev) => [...prev, { role: "user", content: input }]);
@@ -91,6 +131,9 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
     } catch (err) {
       console.error("Error sending message:", err);
       setLoadingResponse(false);
+      setError(
+        err.response?.data?.error || err.message || "Failed to send message"
+      );
       setMessages((prev) => [
         ...prev,
         {
@@ -124,5 +167,7 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
     loadingResponse,
     initialLoading,
     effectiveresponseId,
+    error,
+    condition: normalizedCondition,
   };
 };

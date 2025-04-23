@@ -13,9 +13,23 @@ const router = express.Router();
 // Define the webhook route (protected by the JWT middleware)
 router.post("/webhook", verifyToken, handleWebhook);
 router.get("/response/:responseId/images", getUserImages);
-// ✅ OpenAI Chat API (JWT protected)
-router.post("/chat", handleChat);
-router.post("/greeting", handleGreeting);
+
+// Chat endpoints with condition parameter
+router.post("/chat", (req, res) => {
+  const { condition } = req.body;
+  if (!condition) {
+    return res.status(400).json({ error: "Condition parameter is required" });
+  }
+  handleChat(req, res);
+});
+
+router.post("/greeting", (req, res) => {
+  const { condition } = req.body;
+  if (!condition) {
+    return res.status(400).json({ error: "Condition parameter is required" });
+  }
+  handleGreeting(req, res);
+});
 
 // Logo and image handling
 router.post("/logos/submit", upload.single("logoFile"), uploadUserLogo);
