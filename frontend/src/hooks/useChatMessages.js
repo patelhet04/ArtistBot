@@ -94,8 +94,12 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
     };
   }, [effectiveresponseId, normalizedCondition]);
 
-  const sendMessage = async () => {
-    if (timeLeft <= 0 || !input.trim() || loadingResponse) return;
+  const sendMessage = async (customMessage) => {
+    if (timeLeft <= 0 || loadingResponse) return;
+
+    // Allow either a custom message object or use the input text
+    const messageContent = customMessage ? customMessage.content : input.trim();
+    if (!messageContent) return;
 
     try {
       setLoadingResponse(true);
@@ -105,19 +109,29 @@ export const useChatMessages = (responseId, condition, timeLeft) => {
         throw new Error("Invalid condition parameter");
       }
 
+      // If it's a custom message (like an image upload), use it directly
+      if (customMessage) {
+        setMessages((prev) => [...prev, customMessage]);
+      } else {
+        // For regular text messages, add to the messages array
+        setMessages((prev) => [...prev, { role: "user", content: input }]);
+        setInput("");
+      }
+
+      // API payload
       const payload = {
         responseId: effectiveresponseId,
-        message: input,
+        message: messageContent,
         condition: normalizedCondition,
+        images: customMessage?.images || [],
       };
-
-      setMessages((prev) => [...prev, { role: "user", content: input }]);
-      setInput("");
 
       const response = await axios.post(`/api/chat`, payload, {
         headers: { "Content-Type": "application/json" },
       });
 
+      // Format response with proper markdown if needed
+      // The API already returns markdown-formatted text
       setMessages((prev) => [
         ...prev,
         {

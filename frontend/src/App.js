@@ -5,19 +5,25 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import theme from "./themes/theme";
 import Chat from "./components";
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* ✅ Load Chat Component with URL-based responseId and condition */}
-        <Route path="/chat" element={<Chat />} />
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <Routes>
+          {/* ✅ Load Chat Component with URL-based responseId and condition */}
+          <Route path="/chat" element={<Chat />} />
 
-        {/* ✅ Redirect unknown routes to chat */}
-        <Route path="*" element={<Navigate to="/chat" />} />
-      </Routes>
-    </Router>
+          {/* ✅ Redirect unknown routes to chat */}
+          <Route path="*" element={<Navigate to="/chat" />} />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 

@@ -23,11 +23,7 @@ const StyledCard = styled(Card)(({ theme }) => ({
 
 const CompletionScreen = ({ responseId }) => {
   // Construct the Qualtrics URL with the responseId and environment variables
-  const qualtricsUrl = `https://${
-    process.env.REACT_APP_QUALTRICS_DATACENTER || "ca1"
-  }.qualtrics.com/survey=${
-    process.env.REACT_APP_QUALTRICS_SURVEY_ID || "default"
-  }&userID=${encodeURIComponent(responseId)}`;
+  const qualtricsUrl = `https://neu.co1.qualtrics.com/jfe/form/SV_6FfTXi2yXyabOsu`;
 
   return (
     <Box

@@ -115,7 +115,10 @@ export const handleGreeting = async (req, res) => {
     const greeting = completion.choices[0].message.content;
 
     // Log the interaction
-    await addMessageToSession(responseId, "assistant", greeting);
+    await addMessageToSession(responseId, "assistant", greeting, {
+      condition,
+      systemPrompt: prompt,
+    });
 
     res.json({ greeting });
   } catch (error) {
@@ -142,6 +145,9 @@ export const handleChat = async (req, res) => {
     if (!Object.values(CONDITIONS).includes(condition)) {
       return res.status(400).json({ error: "Invalid condition" });
     }
+
+    // Store the user's message in the database first
+    await addMessageToSession(responseId, "user", message);
 
     // For personalized conditions, check if user has images
     let hasImages = false;

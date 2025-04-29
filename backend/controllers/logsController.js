@@ -15,12 +15,8 @@ export async function createChatSession(responseId, systemPrompt) {
       systemPrompt,
     });
 
-    // Add the system prompt as first message to maintain context properly
-    session.messages.push({
-      role: "system",
-      content: systemPrompt,
-      timestamp: new Date(),
-    });
+    // We no longer add the system prompt as a message
+    // This ensures only user and assistant messages are stored
 
     await session.save();
     console.log(`Created new chat session for user ${responseId}`);
@@ -46,12 +42,17 @@ export async function addMessageToSession(
   options = {}
 ) {
   try {
-    let session = await ChatSession.findOne({ responseId });
+    let session = await ChatSession.findOne({ responseId, isActive: true });
 
     if (!session) {
       // Create a new session if none exists
-      session = await createChatSession(responseId, "");
+      const systemPrompt =
+        options.systemPrompt || "You are a helpful assistant.";
+      session = await createChatSession(responseId, systemPrompt);
     }
+
+    // Make sure content is not empty
+    if (!content) content = "No content provided";
 
     const message = {
       role,
@@ -59,6 +60,9 @@ export async function addMessageToSession(
       timestamp: new Date(),
       ...options,
     };
+
+    // Remove systemPrompt from the message as it's only needed for session creation
+    if (message.systemPrompt) delete message.systemPrompt;
 
     session.messages.push(message);
     await session.save();

@@ -42,8 +42,12 @@ const UploadPanel = ({
   };
 
   return (
-    <SidePanel>
-      <Typography variant="h6" gutterBottom>
+    <SidePanel sx={{ py: 1 }}>
+      <Typography
+        variant="h6"
+        gutterBottom
+        sx={{ mb: 0.5, fontSize: "1.1rem" }}
+      >
         Submit Final Logo
       </Typography>
 
@@ -54,8 +58,9 @@ const UploadPanel = ({
           variant="outlined"
           color="primary"
           onClick={handleLogoDownload}
-          startIcon={<DownloadIcon />}
-          sx={{ mb: 1.5 }}
+          startIcon={<DownloadIcon fontSize="small" />}
+          sx={{ mb: 0.75, py: 0.25, height: 30 }}
+          size="small"
         >
           Download Selected Logo
         </Button>
@@ -69,7 +74,7 @@ const UploadPanel = ({
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        sx={{ py: 2 }}
+        sx={{ py: 0.75 }}
       >
         <input
           type="file"
@@ -80,17 +85,22 @@ const UploadPanel = ({
         />
 
         <CloudUploadIcon
-          fontSize="large"
+          fontSize="small"
           color={finalLogoFile ? "success" : "action"}
-          sx={{ mb: 1 }}
+          sx={{ mb: 0.25, fontSize: "1rem" }}
         />
 
         {finalLogoFile ? (
-          <Typography variant="body2" color="success.main">
+          <Typography variant="body2" color="success.main" fontSize="0.75rem">
             File selected: {finalLogoFile.name}
           </Typography>
         ) : (
-          <Typography variant="body2" color="text.secondary" align="center">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            align="center"
+            sx={{ fontSize: "0.75rem" }}
+          >
             {isDragActive
               ? "Drop your file here!"
               : "Click or drag and drop a file here"}
@@ -102,15 +112,20 @@ const UploadPanel = ({
       {finalLogoFile && (
         <Box
           sx={{
-            mt: 1.5,
-            p: 1.5,
+            mt: 0.75,
+            p: 0.75,
             border: `1px solid #e0e0e0`,
             borderRadius: 1,
             textAlign: "center",
             bgcolor: "rgba(0,0,0,0.02)",
           }}
         >
-          <Typography variant="subtitle2" gutterBottom>
+          <Typography
+            variant="subtitle2"
+            gutterBottom
+            fontSize="0.8rem"
+            sx={{ mb: 0.5 }}
+          >
             Selected Logo:
           </Typography>
           <Box
@@ -119,7 +134,7 @@ const UploadPanel = ({
             alt="Selected Logo"
             sx={{
               maxWidth: "100%",
-              maxHeight: 120,
+              maxHeight: 90,
               objectFit: "contain",
             }}
           />
@@ -127,8 +142,8 @@ const UploadPanel = ({
       )}
 
       {uploadError && (
-        <Alert severity="error" sx={{ mt: 1.5 }}>
-          {uploadError}
+        <Alert severity="error" sx={{ mt: 0.75, py: 0.25 }}>
+          <Typography fontSize="0.75rem">{uploadError}</Typography>
         </Alert>
       )}
 
@@ -140,12 +155,13 @@ const UploadPanel = ({
         disabled={!finalLogoFile || uploadLoading}
         startIcon={
           uploadLoading ? (
-            <CircularProgress size={20} color="inherit" />
+            <CircularProgress size={14} color="inherit" />
           ) : (
-            <CloudUploadIcon />
+            <CloudUploadIcon fontSize="small" sx={{ fontSize: "0.9rem" }} />
           )
         }
-        sx={{ mt: 1 }}
+        sx={{ mt: 1, py: 0.25, height: 30 }}
+        size="small"
       >
         {uploadLoading ? "Uploading..." : "Submit Logo"}
       </Button>

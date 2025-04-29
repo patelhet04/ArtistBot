@@ -2,28 +2,28 @@
 
 ## Quick Reference
 
-| Condition                     | Code | Description                                    | URL Example                                                      |
-| ----------------------------- | ---- | ---------------------------------------------- | ---------------------------------------------------------------- |
-| General                       | `g`  | Standard assistance without personalization    | `http://<ec2-ip>:3000/chat?responseId=<response_id>&condition=g` |
-| Personalized                  | `p`  | Personalized assistance based on user's images | `http://<ec2-ip>:3000/chat?responseId=<response_id>&condition=p` |
-| Personalized with Explanation | `f`  | Personalized with explicit style explanations  | `http://<ec2-ip>:3000/chat?responseId=<response_id>&condition=f` |
+| Condition                     | Code | Description                                    | URL Example                                                            |
+| ----------------------------- | ---- | ---------------------------------------------- | ---------------------------------------------------------------------- |
+| General                       | `g`  | Standard assistance without personalization    | `http://18.191.126.192:3000/chat?responseId=<response_id>&condition=g` |
+| Personalized                  | `p`  | Personalized assistance based on user's images | `http://18.191.126.192:3000/chat?responseId=<response_id>&condition=p` |
+| Personalized with Explanation | `f`  | Personalized with explicit style explanations  | `http://18.191.126.192:3000/chat?responseId=<response_id>&condition=f` |
 
 ## How to Test
 
 ### 1. General Condition (g)
 
-- URL: `http://<ec2-ip>:3000/chat?responseId=<response_id>&condition=g`
+- URL: `http://18.191.126.192:3000/chat?responseId=<response_id>&condition=g`
 - Expected: Standard chat without references to personal style, no images panel
 
 ### 2. Personalized Condition (p)
 
-- URL: `http://<ec2-ip>:3000/chat?responseId=<response_id>&condition=p`
+- URL: `http://18.191.126.192:3000/chat?responseId=<response_id>&condition=p`
 - Requirements: User must have uploaded images in survey
 - Expected: References to user's style without explanations, images panel visible
 
 ### 3. Personalized with Explanation (f)
 
-- URL: `http://<ec2-ip>:3000/chat?responseId=<response_id>&condition=f`
+- URL: `http://18.191.126.192:3000/chat?responseId=<response_id>&condition=f`
 - Requirements: User must have uploaded images in survey
 - Expected: Detailed style analysis and explanations, images panel visible
 
